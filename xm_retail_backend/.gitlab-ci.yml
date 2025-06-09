@@ -1,0 +1,51 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  IMAGE_NAME: "parzival2808/xmbackend"
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  script:
+    - docker build -t $IMAGE_NAME .
+    - docker push $IMAGE_NAME:latest
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  image: docker:latest
+  before_script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  script:
+    - docker pull $IMAGE_NAME:latest
+    - docker rm -f nodejs-app-container || true
+    - >
+      docker run -d
+      -p 4000:4000
+      --name nodejs-app-container
+      -e MYSQL_HOST="$MYSQL_HOST"
+      -e MYSQL_USER="$MYSQL_USER"
+      -e MYSQL_PASSWORD="$MYSQL_PASSWORD"
+      -e MYSQL_DATABASE="$MYSQL_DATABASE"
+      -e JWT_SECRET="$JWT_SECRET"
+      -e RAZORPAY_KEY_ID="$RAZORPAY_KEY_ID"
+      -e RAZORPAY_SECRET="$RAZORPAY_SECRET"
+      -e TWILIO_ACCOUNT_SID="$TWILIO_ACCOUNT_SID"
+      -e TWILIO_AUTH_TOKEN="$TWILIO_AUTH_TOKEN"
+      -e TWILIO_PHONE_NUMBER="$TWILIO_PHONE_NUMBER"
+      -e EMAIL_USER="$EMAIL_USER"
+      -e EMAIL_PASS="$EMAIL_PASS"
+      -e clientSecret="$clientSecret"
+      -e bearerToken="$bearerToken"
+      $IMAGE_NAME:latest
+  only:
+    - main
+  tags:
+    - samples

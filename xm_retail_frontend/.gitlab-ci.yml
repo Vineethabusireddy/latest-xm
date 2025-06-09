@@ -1,0 +1,29 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  IMAGE_NAME: parzival2808/xmfrontend
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    - docker build -t $IMAGE_NAME --build-arg VITE_APP_SERVER_BASE_URL=$VITE_APP_SERVER_BASE_URL .
+    - docker push $IMAGE_NAME
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  script:
+    - docker pull $IMAGE_NAME
+    - docker rm -f react-app-container || true
+    - docker run -d -p 3000:80 --name react-app-container -e VITE_APP_SERVER_BASE_URL=$VITE_APP_SERVER_BASE_URL $IMAGE_NAME
+  only:
+    - main
+  tags:
+    - frontend
